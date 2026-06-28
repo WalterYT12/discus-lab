@@ -5,7 +5,7 @@
 // already installed this app pick up the update instead of being stuck
 // on stale cached files forever.
 
-const CACHE_VERSION = 'discus-lab-v1';
+const CACHE_VERSION = 'discus-lab-v2';
 
 const ASSETS_TO_CACHE = [
   './',
