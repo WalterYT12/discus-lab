@@ -425,10 +425,42 @@ input[type="range"]::-moz-range-thumb {
 
 /* ============ RESPONSIVE ============ */
 @media (max-width: 980px) {
-  .layout { grid-template-columns: 1fr; grid-template-rows: auto 1fr auto; }
-  .rail { border: none; border-bottom: 1px solid var(--line); flex-direction: row; flex-wrap: wrap; overflow-x: auto; }
-  .rail-right { border-bottom: none; border-top: 1px solid var(--line); }
-  .panel { min-width: 220px; flex: 1; }
+  /* On phones, the 3D stage needs a guaranteed, generous height — it
+     can't rely on a CSS grid "1fr" row, since that only gets leftover
+     space AFTER the auto-height rows above/below it are measured, and
+     two control panels' worth of sliders is taller than most phone
+     screens, leaving 1fr with nothing (this was the original bug: the
+     stage collapsed to 0px height on phones). Instead we switch the
+     whole #app to a normal scrolling column: stage first with a fixed
+     height, then both rails stacked underneath, each scrolling within
+     itself if needed. The page as a whole can scroll vertically past
+     the stage to reach the controls.
+  */
+  html, body { overflow: auto; height: auto; }
+  #app { height: auto; min-height: 100vh; }
+
+  .layout {
+    display: flex;
+    flex-direction: column;
+    flex: none;
+    overflow: visible;
+  }
+
+  .stage-wrap { order: -1; }
+  .stage { height: 60vh; min-height: 320px; }
+
+  .rail {
+    flex-direction: column;
+    max-height: none;
+    overflow-y: visible;
+    border: none;
+    border-top: 1px solid var(--line);
+  }
+  .rail-right { border-left: none; }
+
+  .panel { min-width: 0; }
+
+  .coaching-bar { flex-wrap: wrap; }
 }
 
 /* Reduced motion */
