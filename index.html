@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Discus Throw Lab — Wind &amp; Trajectory Simulator</title>
+
+<!-- PWA: manifest + theme color for the installed app's status bar -->
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#0a0b0d">
+
+<!-- iOS-specific install behavior: full-screen standalone app, dark
+     status bar, and the home screen icon (iOS ignores manifest.json
+     icons, so this explicit link is required for Add to Home Screen). -->
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Discus Lab">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<link rel="icon" href="icons/icon-192.png">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Big+Shoulders:wght@600;700;800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<div id="app">
+
+  <!-- ============ TOP BAR ============ -->
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-mark">D</span>
+      <div class="brand-text">
+        <h1>DISCUS LAB</h1>
+        <p>wind &amp; trajectory simulator</p>
+      </div>
+    </div>
+    <div class="topbar-readout">
+      <div class="readout-item">
+        <span class="readout-label">Distance</span>
+        <span class="readout-value" id="readout-distance">—</span>
+      </div>
+      <div class="readout-item">
+        <span class="readout-label">Drift</span>
+        <span class="readout-value" id="readout-drift">—</span>
+      </div>
+      <div class="readout-item">
+        <span class="readout-label">Flight time</span>
+        <span class="readout-value" id="readout-time">—</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- ============ MAIN LAYOUT ============ -->
+  <main class="layout">
+
+    <!-- LEFT RAIL: WIND -->
+    <aside class="rail rail-left">
+      <section class="panel">
+        <h2 class="panel-title">Wind</h2>
+
+        <div class="control">
+          <label for="wind-speed">Speed <span class="unit" id="wind-speed-val">0 m/s</span></label>
+          <input type="range" id="wind-speed" min="0" max="15" step="0.5" value="0">
+        </div>
+
+        <div class="control">
+          <label for="wind-dir">Direction <span class="unit" id="wind-dir-val">0°</span></label>
+          <input type="range" id="wind-dir" min="0" max="359" step="1" value="0">
+          <div class="dial" id="wind-dial">
+            <svg viewBox="0 0 100 100">
+              <circle cx="50" cy="50" r="46" class="dial-ring"/>
+              <line x1="50" y1="50" x2="50" y2="10" class="dial-needle" id="dial-needle"/>
+              <circle cx="50" cy="50" r="3" class="dial-hub"/>
+              <text x="50" y="8" class="dial-label">H</text>
+              <text x="50" y="96" class="dial-label">T</text>
+            </svg>
+          </div>
+        </div>
+
+        <div class="control control-toggle">
+          <label for="gusts-toggle">Gusts</label>
+          <button class="toggle" id="gusts-toggle" data-on="false" aria-pressed="false"><span class="toggle-knob"></span></button>
+        </div>
+
+        <div class="control control-toggle" id="gust-strength-wrap" style="display:none;">
+          <label for="gust-strength">Gust intensity <span class="unit" id="gust-strength-val">3 m/s</span></label>
+          <input type="range" id="gust-strength" min="1" max="8" step="0.5" value="3">
+        </div>
+
+        <div class="control" style="margin-top:4px;">
+          <label>Throwing hand</label>
+          <button class="hand-btn" id="handedness-btn" data-hand="right">Right-handed</button>
+        </div>
+
+        <h2 class="panel-title panel-title-sub">Presets</h2>
+        <div class="preset-grid">
+          <button class="preset-btn" data-preset="tail">Tailwind</button>
+          <button class="preset-btn" data-preset="head">Headwind</button>
+          <button class="preset-btn" data-preset="qhl">Quarter head (L)</button>
+          <button class="preset-btn" data-preset="qtl">Quarter tail (L)</button>
+          <button class="preset-btn" data-preset="qhr">Quarter head (R)</button>
+          <button class="preset-btn" data-preset="qtr">Quarter tail (R)</button>
+        </div>
+      </section>
+    </aside>
+
+    <!-- CENTER: 3D STAGE -->
+    <section class="stage-wrap">
+      <div id="stage" class="stage">
+        <canvas id="three-canvas"></canvas>
+        <div class="stage-readout">
+          <span id="cam-readout">0.0° / 0.0°</span>
+        </div>
+        <div class="stage-hint" id="stage-hint">drag to rotate</div>
+        <button class="freeform-btn" id="freeform-btn">Reset view</button>
+      </div>
+
+      <div class="coaching-bar" id="coaching-bar">
+        <div class="coaching-icon" id="coaching-icon">—</div>
+        <div class="coaching-text">
+          <div class="coaching-title" id="coaching-title">Set your conditions</div>
+          <div class="coaching-detail" id="coaching-detail">Adjust wind and throw settings to see tilt and aim recommendations.</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- RIGHT RAIL: THROW -->
+    <aside class="rail rail-right">
+      <section class="panel">
+        <h2 class="panel-title">Throw</h2>
+
+        <div class="control">
+          <label for="release-angle">Release angle <span class="unit" id="release-angle-val">35°</span></label>
+          <input type="range" id="release-angle" min="15" max="50" step="1" value="35">
+        </div>
+
+        <div class="control">
+          <label for="tilt-angle">Discus tilt <span class="unit" id="tilt-angle-val">20°</span></label>
+          <input type="range" id="tilt-angle" min="-10" max="40" step="1" value="20">
+        </div>
+
+        <div class="control">
+          <label for="spin-rate">Spin rate <span class="unit" id="spin-rate-val">6 rev/s</span></label>
+          <input type="range" id="spin-rate" min="3" max="9" step="0.5" value="6">
+        </div>
+
+        <div class="control">
+          <label for="release-speed">Release speed <span class="unit" id="release-speed-val">22 m/s</span></label>
+          <input type="range" id="release-speed" min="15" max="28" step="0.5" value="22">
+        </div>
+
+        <button class="throw-btn" id="throw-btn">
+          <span>THROW</span>
+        </button>
+      </section>
+
+      <section class="panel panel-aim">
+        <h2 class="panel-title">Aim</h2>
+        <svg viewBox="0 0 200 220" class="sector-svg">
+          <path d="M20 175 A 90 90 0 0 1 180 175" fill="none" class="sector-arc"/>
+          <line x1="100" y1="175" x2="100" y2="40" class="sector-center"/>
+          <circle cx="100" cy="175" r="3" class="sector-origin"/>
+
+          <!-- Throw/aim arrow: points AWAY from "you" (downrange), rotates
+               with aimOffsetDeg. rotate(0) = straight ahead. -->
+          <line id="sector-arrow" x1="100" y1="175" x2="100" y2="55" class="sector-arrow" marker-end="url(#sector-arrowhead)"/>
+
+          <!-- Wind-source arrow: drawn pointing TOWARD "you" from out at the
+               edge of the sector, so the arrowhead always shows where the
+               wind is blowing AT the thrower from. Positioned/rotated using
+               the same windDirection angle convention as the throw arrow
+               (0 = from straight ahead/downrange, 180 = from behind,
+               90 = from the right, 270 = from the left), so rotate(windDirection)
+               places this arrow's tail at the correct compass position while
+               the arrow itself always points inward toward "you". -->
+          <line id="wind-arrow" x1="100" y1="25" x2="100" y2="70" class="wind-arrow" marker-end="url(#wind-arrowhead)"/>
+
+          <defs>
+            <marker id="sector-arrowhead" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+              <path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+            </marker>
+            <marker id="wind-arrowhead" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+              <path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+            </marker>
+          </defs>
+          <text x="100" y="200" class="sector-label">you</text>
+        </svg>
+        <div class="aim-readout" id="aim-readout">Aim center of sector</div>
+        <div class="wind-legend"><span class="wind-legend-swatch"></span>wind direction</div>
+      </section>
+
+      <section class="panel panel-flightpath">
+        <h2 class="panel-title">Flight path (side view)</h2>
+        <svg id="flightpath-svg" viewBox="0 0 280 160" class="flightpath-svg"></svg>
+      </section>
+    </aside>
+
+  </main>
+</div>
+
+<script>
+  // Backstop for errors that happen OUTSIDE main.js's own try/catch —
+  // most importantly, a module loading failure, which throws before any
+  // of our code runs at all. Without this, that kind of failure is
+  // completely silent: blank dark screen, nothing in the UI ever
+  // updates, no visible error anywhere.
+  window.addEventListener('error', (e) => {
+    showBootError(e.message, e.filename ? `${e.filename}:${e.lineno}` : '');
+  });
+  window.addEventListener('unhandledrejection', (e) => {
+    showBootError(e.reason && e.reason.message ? e.reason.message : String(e.reason), '');
+  });
+  let bootErrorShown = false;
+  function showBootError(message, location) {
+    if (bootErrorShown) return; // only show the first one
+    bootErrorShown = true;
+    const box = document.createElement('div');
+    box.style.cssText = 'position:fixed;inset:0;z-index:99999;background:#0a0b0d;color:#eceef0;font-family:monospace;font-size:13px;line-height:1.5;padding:20px;overflow:auto;white-space:pre-wrap;';
+    box.textContent = 'App failed to start.\n\nScreenshot this and send it back:\n\n' + message + (location ? '\n\n' + location : '');
+    document.body.appendChild(box);
+  }
+</script>
+
+<script type="module" src="js/main.js"></script>
+
+<script>
+  // Register the service worker so the app keeps working offline after
+  // the first successful load. Relative path + relative scope so this
+  // works correctly whether the app is hosted at a domain root or in a
+  // subfolder (e.g. https://username.github.io/discus-sim/).
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('service-worker.js').catch((err) => {
+        console.warn('Service worker registration failed:', err);
+      });
+    });
+  }
+</script>
+</body>
+</html>
